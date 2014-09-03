@@ -63,6 +63,8 @@ public abstract class AbstractMigrator<TFROM extends ScmSyncConfigurationPOJO, T
                     manualIncludes.add(reader.getValue());
                     reader.moveUp();
                 }
+			} else if("credentials".equals(reader.getNodeName())){
+				pojo.setCredentials(reader.getValue());
 			} else {
 				IllegalArgumentException iae = new IllegalArgumentException("Unknown tag : "+reader.getNodeName());
 				LOGGER.throwing(this.getClass().getName(), "readScmSyncConfigurationPOJO", iae);

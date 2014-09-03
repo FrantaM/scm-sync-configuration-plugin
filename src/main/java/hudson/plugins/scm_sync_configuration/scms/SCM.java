@@ -1,9 +1,12 @@
 package hudson.plugins.scm_sync_configuration.scms;
 
+import hudson.PluginManager;
 import hudson.model.Descriptor;
+import hudson.plugins.scm_sync_configuration.ScmSyncConfigurationPlugin;
 
 import java.util.List;
 import java.util.logging.Logger;
+import jenkins.model.Jenkins;
 
 import jenkins.model.Jenkins;
 
@@ -63,7 +66,10 @@ public abstract class SCM {
     }
 
     public ScmRepository getConfiguredRepository(ScmManager scmManager, String scmRepositoryURL) {
-        SCMCredentialConfiguration credentials = extractScmCredentials( extractScmUrlFrom(scmRepositoryURL) );
+        SCMCredentialConfiguration credentials = Jenkins.getInstance().getPlugin(ScmSyncConfigurationPlugin.class).getCredentialConfiguration();
+        if (credentials == null) {
+            credentials = extractScmCredentials( extractScmUrlFrom(scmRepositoryURL) );
+        }
 
         LOGGER.info("Creating SCM repository object for url : "+scmRepositoryURL);
         ScmRepository repository = null;

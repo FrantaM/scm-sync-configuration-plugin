@@ -94,6 +94,12 @@ public class ScmSyncConfigurationXStreamConverter implements Converter {
             }
             writer.endNode();
         }
+
+        if (plugin.getCredentials() != null) {
+            writer.startNode("credentials");
+            writer.setValue(plugin.getCredentials());
+            writer.endNode();
+        }
     }
 	
 	/**

@@ -10,6 +10,13 @@
             </j:forEach>
         </table>
     </f:entry>
+    <f:entry title="${%Credentials}" name="credentials">
+        <select class="setting-input select" name="credentials">
+            <j:forEach var="opt" items="${it.doFillCredentialsItems()}">
+                <f:option value="${opt.value}" selected="${opt.value.equals(it.credentials)}">${opt.name}</f:option>
+            </j:forEach>
+        </select>
+    </f:entry>
     <f:entry title="${%Never bother me with commit messages}" help="${rootUrl}/plugin/scm-sync-configuration/help/noUserCommitMessage-help.html">
         <j:choose>
             <j:when test="${it.noUserCommitMessage}">

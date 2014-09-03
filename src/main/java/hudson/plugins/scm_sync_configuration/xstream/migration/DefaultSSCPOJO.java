@@ -12,7 +12,14 @@ public class DefaultSSCPOJO implements ScmSyncConfigurationPOJO {
 	private boolean displayStatus;
     private String commitMessagePattern;
     private List<String> manualSynchronizationIncludes;
-	
+	private String credentials;
+
+	public String getCredentials() {
+		return credentials;
+	}
+	public void setCredentials(String credentials) {
+		this.credentials = credentials;
+	}
 	public String getScmRepositoryUrl() {
 		return scmRepositoryUrl;
 	}

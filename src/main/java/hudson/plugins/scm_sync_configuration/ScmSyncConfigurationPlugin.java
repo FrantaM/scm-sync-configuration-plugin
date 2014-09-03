@@ -1,5 +1,12 @@
 package hudson.plugins.scm_sync_configuration;
 
+import com.cloudbees.plugins.credentials.CredentialsMatchers;
+import com.cloudbees.plugins.credentials.CredentialsProvider;
+import com.cloudbees.plugins.credentials.common.StandardCredentials;
+import com.cloudbees.plugins.credentials.common.StandardListBoxModel;
+import com.cloudbees.plugins.credentials.common.StandardUsernamePasswordCredentials;
+import com.cloudbees.plugins.credentials.common.UsernamePasswordCredentials;
+import com.cloudbees.plugins.credentials.domains.DomainRequirement;
 import com.google.common.base.Function;
 import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
@@ -9,6 +16,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 
 import hudson.Plugin;
+import hudson.Util;
 import hudson.model.Descriptor;
 import hudson.model.Descriptor.FormException;
 import hudson.model.Saveable;
@@ -17,6 +25,7 @@ import hudson.plugins.scm_sync_configuration.extensions.ScmSyncConfigurationFilt
 import hudson.plugins.scm_sync_configuration.model.ChangeSet;
 import hudson.plugins.scm_sync_configuration.model.ScmContext;
 import hudson.plugins.scm_sync_configuration.scms.SCM;
+import hudson.plugins.scm_sync_configuration.scms.SCMCredentialConfiguration;
 import hudson.plugins.scm_sync_configuration.scms.ScmSyncNoSCM;
 import hudson.plugins.scm_sync_configuration.strategies.ScmSyncStrategy;
 import hudson.plugins.scm_sync_configuration.strategies.impl.*;
@@ -25,9 +34,12 @@ import hudson.plugins.scm_sync_configuration.transactions.ScmTransaction;
 import hudson.plugins.scm_sync_configuration.transactions.ThreadedTransaction;
 import hudson.plugins.scm_sync_configuration.xstream.ScmSyncConfigurationXStreamConverter;
 import hudson.plugins.scm_sync_configuration.xstream.migration.ScmSyncConfigurationPOJO;
+import hudson.security.ACL;
+import hudson.util.ListBoxModel;
 import hudson.security.Permission;
 import hudson.util.FormValidation;
 import hudson.util.PluginServletFilter;
+import hudson.util.Secret;
 import net.sf.json.JSONObject;
 
 import org.acegisecurity.AccessDeniedException;
@@ -51,6 +63,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Future;
 import java.util.logging.Logger;
@@ -114,6 +127,29 @@ public class ScmSyncConfigurationPlugin extends Plugin{
     private String commitMessagePattern = "[message]";
     private List<File> filesModifiedByLastReload;
     private List<String> manualSynchronizationIncludes;
+    private String credentials;
+
+    public String getCredentials() {
+        return credentials;
+    }
+    public SCMCredentialConfiguration getCredentialConfiguration() {
+        final String id = Util.fixEmptyAndTrim(this.getCredentials());
+        if (id != null) {
+            final List<StandardCredentials> all = CredentialsProvider.lookupCredentials(StandardCredentials.class, Jenkins.getInstance(),
+                    ACL.SYSTEM, Collections.<DomainRequirement>emptyList());
+            final StandardCredentials cred = CredentialsMatchers.firstOrNull(all, CredentialsMatchers.withId(id));
+            if (cred instanceof UsernamePasswordCredentials) {
+                final UsernamePasswordCredentials c = (UsernamePasswordCredentials) cred;
+                return new SCMCredentialConfiguration(c.getUsername(), Secret.toString(c.getPassword()));
+            }
+        }
+
+        return null;
+    }
+
+    public void setCredentials(String credentials) {
+        this.credentials = credentials;
+    }
 
     public ScmSyncConfigurationPlugin(){
         // By default, transactions should be asynchronous
@@ -164,6 +200,7 @@ public class ScmSyncConfigurationPlugin extends Plugin{
         this.displayStatus = pojo.isDisplayStatus();
         this.commitMessagePattern = pojo.getCommitMessagePattern();
         this.manualSynchronizationIncludes = pojo.getManualSynchronizationIncludes();
+        this.credentials = pojo.getCredentials();
     }
 
     protected void initialInit() throws Exception {
@@ -200,6 +237,7 @@ public class ScmSyncConfigurationPlugin extends Plugin{
         this.noUserCommitMessage = formData.getBoolean("noUserCommitMessage");
         this.displayStatus = formData.getBoolean("displayStatus");
         this.commitMessagePattern = req.getParameter("commitMessagePattern");
+        this.credentials = formData.optString("credentials");
 
         String oldScmRepositoryUrl = this.scmRepositoryUrl;
         String scmType = req.getParameter("scm");
@@ -304,6 +342,14 @@ public class ScmSyncConfigurationPlugin extends Plugin{
 
     public void doSynchronizeFile(@QueryParameter String path){
         getTransaction().registerPath(path);
+    }
+
+    public ListBoxModel doFillCredentialsItems() {
+        final StandardListBoxModel model = new StandardListBoxModel();
+        model.withEmptySelection();
+        model.withAll(CredentialsProvider.lookupCredentials(StandardUsernamePasswordCredentials.class, Jenkins.getInstance(), ACL.SYSTEM, (List<DomainRequirement>) null));
+
+        return model;
     }
 
     /**
